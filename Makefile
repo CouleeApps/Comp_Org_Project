@@ -1,7 +1,11 @@
-CFLAGS= -O2 -Wall
+CC = clang
+CFLAGS = -O2 -Wall
 LDFLAGS = -lm
-all: iplc-sim.c
-	clang $(CFLAGS) iplc-sim.c -o iplc-sim $(LDFLAGS)
+SOURCES = iplc-sim.c
+EXECUTABLE = iplc-sim
+
+all: $(SOURCES)
+	$(CC) $(CFLAGS) $(SOURCES) -o $(EXECUTABLE) $(LDFLAGS)
 
 clean:
-	rm iplc-sim
+	rm $(EXECUTABLE)
