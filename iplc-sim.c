@@ -132,29 +132,32 @@ pipeline_t pipeline[MAX_STAGES];
 /*
  * Correctly configure the cache.
  */
-//Returns 1 for a hit and 0 for a miss
-byte cache_line_assoc_handler(cache_line_t line, int tag) {
+// Returns 1 for a hit and 0 for a miss
+byte cache_line_assoc_handler(cache_line_t line, int tag)
+{
     byte i;
-    for(i = 0; i < cache_assoc; i++) {
-        if(line.tag[i] == tag) return 1;
+    for (i = 0; i < cache_assoc; i++) {
+        if (line.tag[i] == tag) return 1;
     }
     return 0;
 }
-//Search the cache line for the least recently accessed element
-int cache_line_select_replace(cache_line_t line) {
+
+// Search the cache line for the least recently accessed element
+int cache_line_select_replace(cache_line_t line)
+{
     int i;
     switch(cache_assoc) {
         case 1:
             return 0;
         case 2:
-            if(line.last_accessed[0] == 0) return 0;
-            else return 1;
+            return (line.last_accessed[0] != 0);
         case 4:
-            for(i = 0; i < 3; i++) {
-                if(line.last_accessed[i] == 0) return i;
+            for (i = 0; i < 3; i++) {
+                if (line.last_accessed[i] == 0) return i;
             }
+        default:
+            return 0; //In case something goes horribly wrong
     }
-    return 0; //In case something goes horribly wrong
 }
 
 void iplc_sim_init(int index, int blocksize, int assoc)
