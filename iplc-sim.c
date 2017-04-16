@@ -211,6 +211,7 @@ void iplc_sim_LRU_replace_on_miss(int index, int tag)
     //Set the oldest one to be the greatest
     cache[index].last_accessed[lru] = cache_assoc;
     cache[index].tag[lru] = tag;
+    cache[index].valid[lru] = 1;
 
     //And subtract one from all the rest
     for (int i = 0; i < cache_assoc; ++i) {
