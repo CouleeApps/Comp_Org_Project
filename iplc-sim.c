@@ -387,6 +387,11 @@ void iplc_sim_push_pipeline_stage()
                 pipeline[WRITEBACK] = pipeline[MEM];
                 pipeline[MEM] = pipeline[ALU];
                 pipeline[ALU] = pipeline[DECODE];
+
+                /* 1. Count WRITEBACK stage is "retired" -- This I'm giving you */
+                if (pipeline[WRITEBACK].instruction_address) {
+                    instruction_count++;
+                }
                 //And this stage is cleared
                 memset(&(pipeline[DECODE]), NOP, sizeof(pipeline_t));
             }
