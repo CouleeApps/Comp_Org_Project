@@ -133,13 +133,13 @@ pipeline_t pipeline[MAX_STAGES];
  * Correctly configure the cache.
  */
 // Returns 1 for a hit and 0 for a miss
-byte cache_line_assoc_handler(cache_line_t line, int tag)
+int cache_line_assoc_handler(cache_line_t line, int tag)
 {
-    byte i;
+    int i;
     for (i = 0; i < cache_assoc; i++) {
-        if (line.tag[i] == tag) return 1;
+        if (line.tag[i] == tag) return i;
     }
-    return 0;
+    return -1;
 }
 
 // Search the cache line for the least recently accessed element
@@ -209,7 +209,15 @@ void iplc_sim_init(int index, int blocksize, int assoc)
  */
 void iplc_sim_LRU_replace_on_miss(int index, int tag)
 {
-    //TODO
+    int lru = cache_line_select_replace(cache[index]);
+    //Set the oldest one to be the greatest
+    cache[index].last_accessed[lru] = cache_assoc;
+    cache[index].tag[lru] = tag;
+
+    //And subtract one from all the rest
+    for (int i = 0; i < cache_assoc; ++i) {
+        cache[index].last_accessed[i] --;
+    }
 }
 
 /*
@@ -218,7 +226,16 @@ void iplc_sim_LRU_replace_on_miss(int index, int tag)
  */
 void iplc_sim_LRU_update_on_hit(int index, int assoc_entry)
 {
-    // TODO
+    int hit_access = cache[index].last_accessed[assoc_entry];
+    //Mark this one as the most recently accessed
+    cache[index].last_accessed[assoc_entry] = 4;
+    for (int i = 0; i < cache_assoc; ++i) {
+        //Anything that was accessed "after" this one is decremented
+        // Eg we hit 1, so change 2 -> 1, 3 -> 2
+        if (cache[index].last_accessed[i] > hit_access) {
+            cache[index].last_accessed[i] --;
+        }
+    }
 }
 
 /*
@@ -231,12 +248,16 @@ int iplc_sim_trap_address(unsigned int address)
 {
     int i = 0, index = address % cache_index;
     int tag = address >> cache_index;
-    int hit = cache_line_assoc_handler(cache[index], tag);
-
-
+    int assoc_entry = cache_line_assoc_handler(cache[index], tag);
+    //If we didn't miss, we hit
+    int hit = assoc_entry != -1;
     
     // Call the appropriate function for a miss or hit
-    iplc_sim_LRU_replace_on_miss(index, )
+    if (hit) {
+        iplc_sim_LRU_update_on_hit(index, assoc_entry);
+    } else {
+        iplc_sim_LRU_replace_on_miss(index, tag);
+    }
 
     /* expects you to return 1 for hit, 0 for miss */
     return hit;
