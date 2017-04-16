@@ -23,10 +23,10 @@ runIt() {
 	INPUT=$(printf "\n%d %d %d\n%d" $INDEX $BLOCK_SIZE $ASSOC $BRANCH_TAKEN)
 	INPUT="$INPUT_FILE$INPUT"
 	if [ $BRANCH_TAKEN -eq 1 ]; then
-		OUTPUT=$(printf "taken-%d-%d-%d.out" $INDEX $BLOCK_SIZE $ASSOC)
+		OUTPUT=$(printf "taken-%d-%d-%d.out.txt" $INDEX $BLOCK_SIZE $ASSOC)
 		OUTPUT="$OUTPUT_DIR$OUTPUT"
 	else
-		OUTPUT=$(printf "nottaken-%d-%d-%d.out" $INDEX $BLOCK_SIZE $ASSOC)
+		OUTPUT=$(printf "nottaken-%d-%d-%d.out.txt" $INDEX $BLOCK_SIZE $ASSOC)
 		OUTPUT="$OUTPUT_DIR$OUTPUT"
 	fi
 	echo $INPUT | "$EXECUTABLE" > "$OUTPUT"
