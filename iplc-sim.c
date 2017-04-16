@@ -382,8 +382,7 @@ void iplc_sim_push_pipeline_stage()
      *    add delay cycles if needed.
      */
     if (pipeline[MEM].itype == LW) {
-        int inserted_nop = 0;
-
+        int hit;
         int tmp = pipeline[MEM].stage.lw.base_reg;
 
         switch (pipeline[ALU].itype) {
@@ -391,22 +390,22 @@ void iplc_sim_push_pipeline_stage()
                 if (pipeline[ALU].stage.rtype.reg1 == tmp ||
                     pipeline[ALU].stage.rtype.reg2_or_constant == tmp ||
                     pipeline[ALU].stage.rtype.dest_reg == tmp)
-                        inserted_nop++;
+                        pipeline_cycles++;
                 break;
             case LW:
                 if (pipeline[ALU].stage.lw.dest_reg == tmp ||
                     pipeline[ALU].stage.lw.base_reg == tmp)
-                        inserted_nop++;
+                        pipeline_cycles++;
                 break;
             case SW:
                 if (pipeline[ALU].stage.sw.base_reg == tmp ||
                     pipeline[ALU].stage.sw.src_reg == tmp)
-                        inserted_nop++;
+                        pipeline_cycles++;
                 break;
             case BRANCH:
                 if (pipeline[ALU].stage.branch.reg1 == tmp ||
                     pipeline[ALU].stage.branch.reg2 == tmp)
-                        inserted_nop++;
+                        pipeline_cycles++;
                 break;
             case NOP:
             case JUMP:
@@ -414,11 +413,49 @@ void iplc_sim_push_pipeline_stage()
             case SYSCALL:
                 break;
         }
+
+        hit = iplc_sim_trap_address(pipeline[MEM].stage.lw.data_address);
+        if(!hit)
+            pipeline_cycles+=10;
     }
 
     /* 4. Check for SW mem access and data miss .. add delay cycles if needed */
     if (pipeline[MEM].itype == SW) {
-        // TODO
+        int hit;
+        int tmp = pipeline[MEM].stage.sw.src_reg;
+
+        switch (pipeline[ALU].itype) {
+            case RTYPE:
+                if (pipeline[ALU].stage.rtype.reg1 == tmp ||
+                    pipeline[ALU].stage.rtype.reg2_or_constant == tmp ||
+                    pipeline[ALU].stage.rtype.dest_reg == tmp)
+                    pipeline_cycles++;
+                break;
+            case LW:
+                if (pipeline[ALU].stage.lw.dest_reg == tmp ||
+                    pipeline[ALU].stage.lw.base_reg == tmp)
+                    pipeline_cycles++;
+                break;
+            case SW:
+                if (pipeline[ALU].stage.sw.base_reg == tmp ||
+                    pipeline[ALU].stage.sw.src_reg == tmp)
+                    pipeline_cycles++;
+                break;
+            case BRANCH:
+                if (pipeline[ALU].stage.branch.reg1 == tmp ||
+                    pipeline[ALU].stage.branch.reg2 == tmp)
+                    pipeline_cycles++;
+                break;
+            case NOP:
+            case JUMP:
+            case JAL:
+            case SYSCALL:
+                break;
+        }
+
+        hit = iplc_sim_trap_address(pipeline[MEM].stage.sw.data_address);
+        if(!hit)
+            pipeline_cycles+=10;
     }
 
     /* 5. Increment pipe_cycles 1 cycle for normal processing */
