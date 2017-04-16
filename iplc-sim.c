@@ -13,7 +13,7 @@
 #define MAX_CACHE_SIZE 10240
 #define CACHE_MISS_DELAY 10 // 10 cycle cache miss penalty
 #define MAX_STAGES 5
-#define byte uint8_t //Could use char, but this seems... neater, somehow
+#define byte int8_t //Could use char, but this seems... neater, somehow
 
 // init the simulator
 void iplc_sim_init(int index, int blocksize, int assoc);
@@ -132,11 +132,15 @@ pipeline_t pipeline[MAX_STAGES];
 /*
  * Correctly configure the cache.
  */
-
-long cache_line_assoc_handler(cache_line_t line, int addr) {
-    
+//Returns 1 for a hit and 0 for a miss
+byte cache_line_assoc_handler(cache_line_t line, int tag) {
+    byte i;
+    for(i = 0; i < cache_assoc; i++) {
+        if(line.tag[i] == tag) return 1;
+    }
+    return 0;
 }
-//Search the cache for the least recently accessed element
+//Search the cache line for the least recently accessed element
 int cache_line_select_replace(cache_line_t line) {
     int i;
     switch(cache_assoc) {
@@ -150,6 +154,7 @@ int cache_line_select_replace(cache_line_t line) {
                 if(line.last_accessed[i] == 0) return i;
             }
     }
+    return 0; //In case something goes horribly wrong
 }
 
 void iplc_sim_init(int index, int blocksize, int assoc)
@@ -201,7 +206,7 @@ void iplc_sim_init(int index, int blocksize, int assoc)
  */
 void iplc_sim_LRU_replace_on_miss(int index, int tag)
 {
-    // TODO
+    //TODO
 }
 
 /*
@@ -221,12 +226,14 @@ void iplc_sim_LRU_update_on_hit(int index, int assoc_entry)
  */
 int iplc_sim_trap_address(unsigned int address)
 {
-    int i = 0, index = 0;
-    int tag = 0;
-    int hit = 0;
+    int i = 0, index = address % cache_index;
+    int tag = address >> cache_index;
+    int hit = cache_line_assoc_handler(cache[index], tag);
+
+
     
     // Call the appropriate function for a miss or hit
-    // TODO
+    iplc_sim_LRU_replace_on_miss(index, )
 
     /* expects you to return 1 for hit, 0 for miss */
     return hit;
