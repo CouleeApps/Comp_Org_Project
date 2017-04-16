@@ -406,42 +406,42 @@ void iplc_sim_push_pipeline_stage()
         int tmp = pipeline[MEM].stage.lw.base_reg;
         int data_hazard = 0;
 
-        switch (pipeline[ALU].itype) {
-            case RTYPE:
-                if (pipeline[ALU].stage.rtype.reg1 == tmp ||
-                    pipeline[ALU].stage.rtype.reg2_or_constant == tmp ||
-                    pipeline[ALU].stage.rtype.dest_reg == tmp)
-                        data_hazard = 1;
-                break;
-            case LW:
-                if (pipeline[ALU].stage.lw.dest_reg == tmp ||
-                    pipeline[ALU].stage.lw.base_reg == tmp)
-                        data_hazard = 1;
-                break;
-            case SW:
-                if (pipeline[ALU].stage.sw.base_reg == tmp ||
-                    pipeline[ALU].stage.sw.src_reg == tmp)
-                        data_hazard = 1;
-                break;
-            case BRANCH:
-                if (pipeline[ALU].stage.branch.reg1 == tmp ||
-                    pipeline[ALU].stage.branch.reg2 == tmp)
-                        data_hazard = 1;
-                break;
-            case NOP:
-            case JUMP:
-            case JAL:
-            case SYSCALL:
-                break;
-        }
-
-        if (data_hazard == 1) {
-            pipeline_cycles ++;
-        }
-
         hit = iplc_sim_trap_address(pipeline[MEM].stage.lw.data_address);
         if (hit) {
             printf("DATA HIT:\t Address 0x%x\n", pipeline[MEM].stage.sw.data_address);
+
+            switch (pipeline[ALU].itype) {
+                case RTYPE:
+                    if (pipeline[ALU].stage.rtype.reg1 == tmp ||
+                        pipeline[ALU].stage.rtype.reg2_or_constant == tmp ||
+                        pipeline[ALU].stage.rtype.dest_reg == tmp)
+                            data_hazard = 1;
+                    break;
+                case LW:
+                    if (pipeline[ALU].stage.lw.dest_reg == tmp ||
+                        pipeline[ALU].stage.lw.base_reg == tmp)
+                            data_hazard = 1;
+                    break;
+                case SW:
+                    if (pipeline[ALU].stage.sw.base_reg == tmp ||
+                        pipeline[ALU].stage.sw.src_reg == tmp)
+                            data_hazard = 1;
+                    break;
+                case BRANCH:
+                    if (pipeline[ALU].stage.branch.reg1 == tmp ||
+                        pipeline[ALU].stage.branch.reg2 == tmp)
+                            data_hazard = 1;
+                    break;
+                case NOP:
+                case JUMP:
+                case JAL:
+                case SYSCALL:
+                    break;
+            }
+
+            if (data_hazard == 1) {
+                pipeline_cycles ++;
+            }
         } else {
             printf("DATA MISS:\t Address 0x%x\n", pipeline[MEM].stage.sw.data_address);
             pipeline_cycles += CACHE_MISS_DELAY - 1;
@@ -454,46 +454,46 @@ void iplc_sim_push_pipeline_stage()
         int tmp = pipeline[MEM].stage.sw.src_reg;
         int data_hazard = 0;
 
-        switch (pipeline[ALU].itype) {
-            case RTYPE:
-                if (pipeline[ALU].stage.rtype.reg1 == tmp ||
-                    pipeline[ALU].stage.rtype.reg2_or_constant == tmp ||
-                    pipeline[ALU].stage.rtype.dest_reg == tmp) {
-                    data_hazard = 1;
-                }
-                break;
-            case LW:
-                if (pipeline[ALU].stage.lw.dest_reg == tmp ||
-                    pipeline[ALU].stage.lw.base_reg == tmp) {
-                    data_hazard = 1;
-                }
-                break;
-            case SW:
-                if (pipeline[ALU].stage.sw.base_reg == tmp ||
-                    pipeline[ALU].stage.sw.src_reg == tmp) {
-                    data_hazard = 1;
-                }
-                break;
-            case BRANCH:
-                if (pipeline[ALU].stage.branch.reg1 == tmp ||
-                    pipeline[ALU].stage.branch.reg2 == tmp) {
-                    data_hazard = 1;
-                }
-                break;
-            case NOP:
-            case JUMP:
-            case JAL:
-            case SYSCALL:
-                break;
-        }
-
-        if (data_hazard == 1) {
-            pipeline_cycles ++;
-        }
-
         hit = iplc_sim_trap_address(pipeline[MEM].stage.sw.data_address);
         if (hit) {
             printf("DATA HIT:\t Address 0x%x\n", pipeline[MEM].stage.sw.data_address);
+
+            switch (pipeline[ALU].itype) {
+                case RTYPE:
+                    if (pipeline[ALU].stage.rtype.reg1 == tmp ||
+                        pipeline[ALU].stage.rtype.reg2_or_constant == tmp ||
+                        pipeline[ALU].stage.rtype.dest_reg == tmp) {
+                        data_hazard = 1;
+                    }
+                    break;
+                case LW:
+                    if (pipeline[ALU].stage.lw.dest_reg == tmp ||
+                        pipeline[ALU].stage.lw.base_reg == tmp) {
+                        data_hazard = 1;
+                    }
+                    break;
+                case SW:
+                    if (pipeline[ALU].stage.sw.base_reg == tmp ||
+                        pipeline[ALU].stage.sw.src_reg == tmp) {
+                        data_hazard = 1;
+                    }
+                    break;
+                case BRANCH:
+                    if (pipeline[ALU].stage.branch.reg1 == tmp ||
+                        pipeline[ALU].stage.branch.reg2 == tmp) {
+                        data_hazard = 1;
+                    }
+                    break;
+                case NOP:
+                case JUMP:
+                case JAL:
+                case SYSCALL:
+                    break;
+            }
+
+            if (data_hazard == 1) {
+                pipeline_cycles ++;
+            }
         } else {
             printf("DATA MISS:\t Address 0x%x\n", pipeline[MEM].stage.sw.data_address);
             pipeline_cycles += CACHE_MISS_DELAY - 1;
