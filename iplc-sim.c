@@ -43,7 +43,6 @@ typedef struct cache_line
 {
     byte* valid;
     int* tag;
-    long* data_block;
     byte* last_accessed;
 
 } cache_line_t;
@@ -137,7 +136,7 @@ int cache_line_assoc_handler(cache_line_t line, int tag)
 {
     int i;
     for (i = 0; i < cache_assoc; i++) {
-        if (line.tag[i] == tag) return i;
+        if (line.tag[i] == tag && line.valid[i]) return i;
     }
     return -1;
 }
@@ -191,7 +190,6 @@ void iplc_sim_init(int index, int blocksize, int assoc)
     for (i = 0; i < (1 << index); i++) {
         cache[i].last_accessed = (byte*) malloc(sizeof(byte) * cache_assoc);
         cache[i].tag = (int*) malloc(sizeof(int) * cache_assoc);
-        cache[i].data_block = (long*) malloc(sizeof(long) * cache_assoc);
         cache[i].valid = (byte*) malloc(sizeof(byte) * cache_assoc);
 
     }
@@ -239,6 +237,25 @@ void iplc_sim_LRU_update_on_hit(int index, int assoc_entry)
 }
 
 /*
+ Given an address and range of bits in the index (start-end, inclusive)
+ return the index.  Example:
+
+ Given the address below, start of 4, and end of 11
+
+    2    1    3    5    C    6    9    0
+ 0010 0001 0011 0101 1100 0110 1001 0000
+                          ^       ^
+                          e       s
+
+ this function should return 0110 1001 or 0x69 or 105 in decimal.
+ */
+uint32_t get_index(uint32_t address, uint32_t idx_start, uint32_t idx_end)
+{
+    //For lsb=1, msb=4, this gives 00000000011110
+    uint32_t bitMask = (uint32_t)((2 << idx_end) - 1);
+    return (address & bitMask) >> idx_start;
+}
+/*
  * Check if the address is in our cache.  Update our counter statistics 
  * for cache_access, cache_hit, etc.  If our configuration supports
  * associativity we may need to check through multiple entries for our
@@ -246,11 +263,13 @@ void iplc_sim_LRU_update_on_hit(int index, int assoc_entry)
  */
 int iplc_sim_trap_address(unsigned int address)
 {
-    int i = 0, index = address % cache_index;
-    int tag = address >> cache_index;
+    int i = 0, index = get_index(address, cache_blockoffsetbits, cache_index + cache_blockoffsetbits - 1);
+    int tag = get_index(address, cache_index + cache_blockoffsetbits, 31);
     int assoc_entry = cache_line_assoc_handler(cache[index], tag);
     //If we didn't miss, we hit
     int hit = assoc_entry != -1;
+
+    printf("Address %x: Tag= %x, Index= %x\n", address, tag, index);
     
     // Call the appropriate function for a miss or hit
     if (hit) {
