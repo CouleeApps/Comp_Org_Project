@@ -6,12 +6,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <math.h>
 
 
 #define MAX_CACHE_SIZE 10240
 #define CACHE_MISS_DELAY 10 // 10 cycle cache miss penalty
 #define MAX_STAGES 5
+#define byte uint8_t //Could use char, but this seems... neater, somehow
 
 // init the simulator
 void iplc_sim_init(int index, int blocksize, int assoc);
@@ -39,12 +41,11 @@ void iplc_sim_finalize();
 
 typedef struct cache_line
 {
-    // TODO
-    // Your data structures for implementing your cache should include:
-    // a valid bit
-    // a tag
-    // a method for handling varying levels of associativity
-    // a method for selecting which item in the cache is going to be replaced
+    byte* valid;
+    int* tag;
+    long* data_block;
+    byte* last_accessed;
+
 } cache_line_t;
 
 cache_line_t *cache = NULL;
@@ -131,6 +132,26 @@ pipeline_t pipeline[MAX_STAGES];
 /*
  * Correctly configure the cache.
  */
+
+long cache_line_assoc_handler(cache_line_t line, int addr) {
+    
+}
+//Search the cache for the least recently accessed element
+int cache_line_select_replace(cache_line_t line) {
+    int i;
+    switch(cache_assoc) {
+        case 1:
+            return 0;
+        case 2:
+            if(line.last_accessed[0] == 0) return 0;
+            else return 1;
+        case 4:
+            for(i = 0; i < 3; i++) {
+                if(line.last_accessed[i] == 0) return i;
+            }
+    }
+}
+
 void iplc_sim_init(int index, int blocksize, int assoc)
 {
     int i = 0, j = 0;
@@ -138,7 +159,6 @@ void iplc_sim_init(int index, int blocksize, int assoc)
     cache_index = index;
     cache_blocksize = blocksize;
     cache_assoc = assoc;
-    
     
     cache_blockoffsetbits = (int) rint( log2( (double) (blocksize * 4) ) );
     /* Note: rint function rounds the result up prior to casting */
@@ -161,7 +181,11 @@ void iplc_sim_init(int index, int blocksize, int assoc)
     
     // Dynamically create our cache based on the information the user entered
     for (i = 0; i < (1 << index); i++) {
-        // TODO
+        cache[i].last_accessed = (byte*) malloc(sizeof(byte) * cache_assoc);
+        cache[i].tag = (int*) malloc(sizeof(int) * cache_assoc);
+        cache[i].data_block = (long*) malloc(sizeof(long) * cache_assoc);
+        cache[i].valid = (byte*) malloc(sizeof(byte) * cache_assoc);
+
     }
     
     // init the pipeline -- set all data to zero and instructions to NOP
