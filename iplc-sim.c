@@ -369,12 +369,12 @@ void iplc_sim_push_pipeline_stage()
     /* 2. Check for BRANCH and correct/incorrect Branch Prediction */
     if (pipeline[DECODE].itype == BRANCH) {
       int branch_taken = 0;
-      if(pipeline[DECODE].instruction_address + 4 == pipeline[FETCH].instruction_address) {
+      if (pipeline[DECODE].instruction_address + 4 == pipeline[FETCH].instruction_address) {
         branch_taken = 1;
       }
 
-      if(branch_taken != branch_predict_taken) {
-        pipeline_cycles+=5;
+      if (branch_taken != branch_predict_taken) {
+        pipeline_cycles += 5;
       }
     }
 
@@ -383,10 +383,40 @@ void iplc_sim_push_pipeline_stage()
      */
     if (pipeline[MEM].itype == LW) {
         int inserted_nop = 0;
-        // TODO
+
+        int tmp = pipeline[MEM].stage.lw.base_reg;
+
+        switch (pipeline[ALU].itype) {
+            case RTYPE:
+                if (pipeline[ALU].stage.rtype.reg1 == tmp ||
+                    pipeline[ALU].stage.rtype.reg2_or_constant == tmp ||
+                    pipeline[ALU].stage.rtype.dest_reg == tmp)
+                        inserted_nop++;
+                break;
+            case LW:
+                if (pipeline[ALU].stage.lw.dest_reg == tmp ||
+                    pipeline[ALU].stage.lw.base_reg == tmp)
+                        inserted_nop++;
+                break;
+            case SW:
+                if (pipeline[ALU].stage.sw.base_reg == tmp ||
+                    pipeline[ALU].stage.sw.src_reg == tmp)
+                        inserted_nop++;
+                break;
+            case BRANCH:
+                if (pipeline[ALU].stage.branch.reg1 == tmp ||
+                    pipeline[ALU].stage.branch.reg2 == tmp)
+                        inserted_nop++;
+                break;
+            case NOP:
+            case JUMP:
+            case JAL:
+            case SYSCALL:
+                break;
+        }
     }
 
-    /* 4. Check for SW mem acess and data miss .. add delay cycles if needed */
+    /* 4. Check for SW mem access and data miss .. add delay cycles if needed */
     if (pipeline[MEM].itype == SW) {
         // TODO
     }
