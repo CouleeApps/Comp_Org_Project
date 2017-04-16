@@ -8,7 +8,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <math.h>
-
+#include <assert.h>
 
 #define MAX_CACHE_SIZE 10240
 #define CACHE_MISS_DELAY 10 // 10 cycle cache miss penalty
@@ -131,7 +131,7 @@ pipeline_t pipeline[MAX_STAGES];
 /*
  * Correctly configure the cache.
  */
-// Returns 1 for a hit and 0 for a miss
+// Returns -1 for a miss, and the cache slot on hit
 int cache_line_assoc_handler(cache_line_t line, int tag)
 {
     int i;
@@ -145,18 +145,12 @@ int cache_line_assoc_handler(cache_line_t line, int tag)
 int cache_line_select_replace(cache_line_t line)
 {
     int i;
-    switch(cache_assoc) {
-        case 1:
-            return 0;
-        case 2:
-            return (line.last_accessed[0] != 0);
-        case 4:
-            for (i = 0; i < 3; i++) {
-                if (line.last_accessed[i] == 0) return i;
-            }
-        default:
-            return 0; //In case something goes horribly wrong
+    for (i = 0; i < cache_assoc; i++) {
+        if (line.last_accessed[i] == 0 || line.valid[i] == 0) return i;
     }
+    //Problems
+    assert(0);
+    return -1;
 }
 
 void iplc_sim_init(int index, int blocksize, int assoc)
@@ -191,7 +185,11 @@ void iplc_sim_init(int index, int blocksize, int assoc)
         cache[i].last_accessed = (byte*) malloc(sizeof(byte) * cache_assoc);
         cache[i].tag = (int*) malloc(sizeof(int) * cache_assoc);
         cache[i].valid = (byte*) malloc(sizeof(byte) * cache_assoc);
-
+        for (j = 0; j < cache_assoc; j ++) {
+            cache[i].last_accessed[j] = 0;
+            cache[i].tag[j] = 0;
+            cache[i].valid[j] = 0;
+        }
     }
 
     // init the pipeline -- set all data to zero and instructions to NOP
@@ -227,7 +225,7 @@ void iplc_sim_LRU_update_on_hit(int index, int assoc_entry)
 {
     int hit_access = cache[index].last_accessed[assoc_entry];
     //Mark this one as the most recently accessed
-    cache[index].last_accessed[assoc_entry] = 4;
+    cache[index].last_accessed[assoc_entry] = cache_assoc;
     for (int i = 0; i < cache_assoc; ++i) {
         //Anything that was accessed "after" this one is decremented
         // Eg we hit 1, so change 2 -> 1, 3 -> 2
