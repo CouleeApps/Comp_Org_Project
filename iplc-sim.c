@@ -372,17 +372,24 @@ void iplc_sim_push_pipeline_stage()
             branch_taken = 0;
         }
 
-        if (branch_taken == branch_predict_taken) {
-            correct_branch_predictions ++;
-        } else {
-            pipeline_cycles ++;
+        if (pipeline[FETCH].instruction_address) {
+            if (branch_taken == branch_predict_taken) {
+                correct_branch_predictions++;
+                if (branch_taken) {
+                    printf("DEBUG: Branch Taken: FETCH addr = 0x%x, DECODE instr addr = 0x%x\n",
+                           pipeline[FETCH].instruction_address,
+                           pipeline[DECODE].instruction_address);
+                }
+            } else {
+                pipeline_cycles++;
 
-            //Everything else goes forward though
-            pipeline[WRITEBACK] = pipeline[MEM];
-            pipeline[MEM] = pipeline[ALU];
-            pipeline[ALU] = pipeline[DECODE];
-            //And this stage is cleared
-            memset(&(pipeline[DECODE]), NOP, sizeof(pipeline_t));
+                //Everything else goes forward though
+                pipeline[WRITEBACK] = pipeline[MEM];
+                pipeline[MEM] = pipeline[ALU];
+                pipeline[ALU] = pipeline[DECODE];
+                //And this stage is cleared
+                memset(&(pipeline[DECODE]), NOP, sizeof(pipeline_t));
+            }
         }
     }
 
@@ -392,28 +399,29 @@ void iplc_sim_push_pipeline_stage()
     if (pipeline[MEM].itype == LW) {
         int hit;
         int tmp = pipeline[MEM].stage.lw.base_reg;
+        int data_hazard = 0;
 
         switch (pipeline[ALU].itype) {
             case RTYPE:
                 if (pipeline[ALU].stage.rtype.reg1 == tmp ||
                     pipeline[ALU].stage.rtype.reg2_or_constant == tmp ||
                     pipeline[ALU].stage.rtype.dest_reg == tmp)
-                        pipeline_cycles++;
+                        data_hazard = 1;
                 break;
             case LW:
                 if (pipeline[ALU].stage.lw.dest_reg == tmp ||
                     pipeline[ALU].stage.lw.base_reg == tmp)
-                        pipeline_cycles++;
+                        data_hazard = 1;
                 break;
             case SW:
                 if (pipeline[ALU].stage.sw.base_reg == tmp ||
                     pipeline[ALU].stage.sw.src_reg == tmp)
-                        pipeline_cycles++;
+                        data_hazard = 1;
                 break;
             case BRANCH:
                 if (pipeline[ALU].stage.branch.reg1 == tmp ||
                     pipeline[ALU].stage.branch.reg2 == tmp)
-                        pipeline_cycles++;
+                        data_hazard = 1;
                 break;
             case NOP:
             case JUMP:
@@ -422,37 +430,50 @@ void iplc_sim_push_pipeline_stage()
                 break;
         }
 
+        if (data_hazard == 1) {
+            pipeline_cycles ++;
+        }
+
         hit = iplc_sim_trap_address(pipeline[MEM].stage.lw.data_address);
-        if(!hit)
-            pipeline_cycles+=10;
+        if (hit) {
+            printf("DATA HIT:\t Address 0x%x\n", pipeline[MEM].stage.sw.data_address);
+        } else {
+            printf("DATA MISS:\t Address 0x%x\n", pipeline[MEM].stage.sw.data_address);
+            pipeline_cycles += CACHE_MISS_DELAY - 1;
+        }
     }
 
     /* 4. Check for SW mem access and data miss .. add delay cycles if needed */
     if (pipeline[MEM].itype == SW) {
         int hit;
         int tmp = pipeline[MEM].stage.sw.src_reg;
+        int data_hazard = 0;
 
         switch (pipeline[ALU].itype) {
             case RTYPE:
                 if (pipeline[ALU].stage.rtype.reg1 == tmp ||
                     pipeline[ALU].stage.rtype.reg2_or_constant == tmp ||
-                    pipeline[ALU].stage.rtype.dest_reg == tmp)
-                    pipeline_cycles++;
+                    pipeline[ALU].stage.rtype.dest_reg == tmp) {
+                    data_hazard = 1;
+                }
                 break;
             case LW:
                 if (pipeline[ALU].stage.lw.dest_reg == tmp ||
-                    pipeline[ALU].stage.lw.base_reg == tmp)
-                    pipeline_cycles++;
+                    pipeline[ALU].stage.lw.base_reg == tmp) {
+                    data_hazard = 1;
+                }
                 break;
             case SW:
                 if (pipeline[ALU].stage.sw.base_reg == tmp ||
-                    pipeline[ALU].stage.sw.src_reg == tmp)
-                    pipeline_cycles++;
+                    pipeline[ALU].stage.sw.src_reg == tmp) {
+                    data_hazard = 1;
+                }
                 break;
             case BRANCH:
                 if (pipeline[ALU].stage.branch.reg1 == tmp ||
-                    pipeline[ALU].stage.branch.reg2 == tmp)
-                    pipeline_cycles++;
+                    pipeline[ALU].stage.branch.reg2 == tmp) {
+                    data_hazard = 1;
+                }
                 break;
             case NOP:
             case JUMP:
@@ -461,9 +482,17 @@ void iplc_sim_push_pipeline_stage()
                 break;
         }
 
+        if (data_hazard == 1) {
+            pipeline_cycles ++;
+        }
+
         hit = iplc_sim_trap_address(pipeline[MEM].stage.sw.data_address);
-        if(!hit)
-            pipeline_cycles+=10;
+        if (hit) {
+            printf("DATA HIT:\t Address 0x%x\n", pipeline[MEM].stage.sw.data_address);
+        } else {
+            printf("DATA MISS:\t Address 0x%x\n", pipeline[MEM].stage.sw.data_address);
+            pipeline_cycles += CACHE_MISS_DELAY - 1;
+        }
     }
 
     /* 5. Increment pipe_cycles 1 cycle for normal processing */
