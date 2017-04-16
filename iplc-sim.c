@@ -367,7 +367,7 @@ void iplc_sim_push_pipeline_stage()
     if (pipeline[DECODE].itype == BRANCH) {
       int branch_taken = 0;
       if(pipeline[DECODE].instruction_address + 4 == pipeline[FETCH].instruction_address) {
-        branch_taken == 1;
+        branch_taken = 1;
       }
 
       if(branch_taken != branch_predict_taken) {
