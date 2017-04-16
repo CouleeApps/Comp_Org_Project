@@ -273,9 +273,12 @@ int iplc_sim_trap_address(unsigned int address)
     printf("Address %x: Tag= %x, Index= %x\n", address, tag, index);
 
     // Call the appropriate function for a miss or hit
+    cache_access ++;
     if (hit) {
+        cache_hit ++;
         iplc_sim_LRU_update_on_hit(index, assoc_entry);
     } else {
+        cache_miss ++;
         iplc_sim_LRU_replace_on_miss(index, tag);
     }
 
