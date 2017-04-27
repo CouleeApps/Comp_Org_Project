@@ -136,6 +136,7 @@ int cache_line_assoc_handler(cache_line_t line, int tag)
 {
     int i;
     for (i = 0; i < cache_assoc; i++) {
+	    //If this is our line and it's valid, we've hit
         if (line.tag[i] == tag && line.valid[i]) return i;
     }
     return -1;
@@ -146,6 +147,7 @@ int cache_line_select_replace(cache_line_t line)
 {
     int i;
     for (i = 0; i < cache_assoc; i++) {
+	    //If this line is free or the least recently used then we can use it
         if (line.last_accessed[i] == 0 || line.valid[i] == 0) return i;
     }
     //Problems
@@ -215,6 +217,8 @@ void iplc_sim_LRU_replace_on_miss(int index, int tag)
     for (int i = 0; i < cache_assoc; ++i) {
         cache[index].last_accessed[i] --;
     }
+	//Means the one we updated will have its access set to assoc - 1
+	//When this hits zero it will be overwritten with new data
 }
 
 /*
@@ -368,10 +372,13 @@ void iplc_sim_push_pipeline_stage()
     if (pipeline[DECODE].itype == BRANCH) {
         branch_count ++;
         int branch_taken = 1;
+	    //Check for branching-- if the next address (in FETCH stage) is 4 greater
+	    // than our current address, we didn't take the branch.
         if (pipeline[DECODE].instruction_address + 4 == pipeline[FETCH].instruction_address) {
             branch_taken = 0;
         }
 
+	    //Check for prediction failure/success, only if we actually have a stage
         if (pipeline[FETCH].instruction_address) {
             if (branch_taken == branch_predict_taken) {
                 correct_branch_predictions++;
@@ -381,14 +388,13 @@ void iplc_sim_push_pipeline_stage()
                            pipeline[DECODE].instruction_address);
                 }
             } else {
+	            //Need to waste a cycle as a penalty
                 pipeline_cycles++;
-
-                //Everything else goes forward though
                 pipeline[WRITEBACK] = pipeline[MEM];
                 pipeline[MEM] = pipeline[ALU];
                 pipeline[ALU] = pipeline[DECODE];
-
-                /* 1. Count WRITEBACK stage is "retired" -- This I'm giving you */
+	            //And if anything would have hit WRITEBACK we've popped it off so add
+	            // an instruction to the counter
                 if (pipeline[WRITEBACK].instruction_address) {
                     instruction_count++;
                 }
@@ -403,33 +409,35 @@ void iplc_sim_push_pipeline_stage()
      */
     if (pipeline[MEM].itype == LW) {
         int hit;
-        int tmp = pipeline[MEM].stage.lw.base_reg;
+	    //Register that we're using, check if it's going to be used anywhere else
+        int our_register = pipeline[MEM].stage.lw.base_reg;
         int data_hazard = 0;
 
         hit = iplc_sim_trap_address(pipeline[MEM].stage.lw.data_address);
         if (hit) {
             printf("DATA HIT:\t Address 0x%x\n", pipeline[MEM].stage.sw.data_address);
 
+	        //Check if we have a data hazard, if that's the case then we need to wait a cycle
             switch (pipeline[ALU].itype) {
                 case RTYPE:
-                    if (pipeline[ALU].stage.rtype.reg1 == tmp ||
-                        pipeline[ALU].stage.rtype.reg2_or_constant == tmp ||
-                        pipeline[ALU].stage.rtype.dest_reg == tmp)
+                    if (pipeline[ALU].stage.rtype.reg1 == our_register ||
+                        pipeline[ALU].stage.rtype.reg2_or_constant == our_register ||
+                        pipeline[ALU].stage.rtype.dest_reg == our_register)
                             data_hazard = 1;
                     break;
                 case LW:
-                    if (pipeline[ALU].stage.lw.dest_reg == tmp ||
-                        pipeline[ALU].stage.lw.base_reg == tmp)
+                    if (pipeline[ALU].stage.lw.dest_reg == our_register ||
+                        pipeline[ALU].stage.lw.base_reg == our_register)
                             data_hazard = 1;
                     break;
                 case SW:
-                    if (pipeline[ALU].stage.sw.base_reg == tmp ||
-                        pipeline[ALU].stage.sw.src_reg == tmp)
+                    if (pipeline[ALU].stage.sw.base_reg == our_register ||
+                        pipeline[ALU].stage.sw.src_reg == our_register)
                             data_hazard = 1;
                     break;
                 case BRANCH:
-                    if (pipeline[ALU].stage.branch.reg1 == tmp ||
-                        pipeline[ALU].stage.branch.reg2 == tmp)
+                    if (pipeline[ALU].stage.branch.reg1 == our_register ||
+                        pipeline[ALU].stage.branch.reg2 == our_register)
                             data_hazard = 1;
                     break;
                 case NOP:
@@ -440,9 +448,11 @@ void iplc_sim_push_pipeline_stage()
             }
 
             if (data_hazard == 1) {
+	            //Yep, hazard. Wait for it to be free.
                 pipeline_cycles ++;
             }
         } else {
+	        //Data miss-- need to add a penalty number of cycles to wait for stuff to load
             printf("DATA MISS:\t Address 0x%x\n", pipeline[MEM].stage.sw.data_address);
             pipeline_cycles += CACHE_MISS_DELAY - 1;
         }
@@ -451,36 +461,38 @@ void iplc_sim_push_pipeline_stage()
     /* 4. Check for SW mem access and data miss .. add delay cycles if needed */
     if (pipeline[MEM].itype == SW) {
         int hit;
-        int tmp = pipeline[MEM].stage.sw.src_reg;
+	    //Register that we're using, check if it's going to be used anywhere else
+        int our_register = pipeline[MEM].stage.sw.src_reg;
         int data_hazard = 0;
 
         hit = iplc_sim_trap_address(pipeline[MEM].stage.sw.data_address);
         if (hit) {
             printf("DATA HIT:\t Address 0x%x\n", pipeline[MEM].stage.sw.data_address);
 
+	        //Check if we have a data hazard, if that's the case then we need to wait a cycle
             switch (pipeline[ALU].itype) {
                 case RTYPE:
-                    if (pipeline[ALU].stage.rtype.reg1 == tmp ||
-                        pipeline[ALU].stage.rtype.reg2_or_constant == tmp ||
-                        pipeline[ALU].stage.rtype.dest_reg == tmp) {
+                    if (pipeline[ALU].stage.rtype.reg1 == our_register ||
+                        pipeline[ALU].stage.rtype.reg2_or_constant == our_register ||
+                        pipeline[ALU].stage.rtype.dest_reg == our_register) {
                         data_hazard = 1;
                     }
                     break;
                 case LW:
-                    if (pipeline[ALU].stage.lw.dest_reg == tmp ||
-                        pipeline[ALU].stage.lw.base_reg == tmp) {
+                    if (pipeline[ALU].stage.lw.dest_reg == our_register ||
+                        pipeline[ALU].stage.lw.base_reg == our_register) {
                         data_hazard = 1;
                     }
                     break;
                 case SW:
-                    if (pipeline[ALU].stage.sw.base_reg == tmp ||
-                        pipeline[ALU].stage.sw.src_reg == tmp) {
+                    if (pipeline[ALU].stage.sw.base_reg == our_register ||
+                        pipeline[ALU].stage.sw.src_reg == our_register) {
                         data_hazard = 1;
                     }
                     break;
                 case BRANCH:
-                    if (pipeline[ALU].stage.branch.reg1 == tmp ||
-                        pipeline[ALU].stage.branch.reg2 == tmp) {
+                    if (pipeline[ALU].stage.branch.reg1 == our_register ||
+                        pipeline[ALU].stage.branch.reg2 == our_register) {
                         data_hazard = 1;
                     }
                     break;
@@ -492,9 +504,11 @@ void iplc_sim_push_pipeline_stage()
             }
 
             if (data_hazard == 1) {
+	            //Yep, hazard. Wait for it to be free.
                 pipeline_cycles ++;
             }
         } else {
+	        //Data miss-- need to add a penalty number of cycles to wait for stuff to write
             printf("DATA MISS:\t Address 0x%x\n", pipeline[MEM].stage.sw.data_address);
             pipeline_cycles += CACHE_MISS_DELAY - 1;
         }
